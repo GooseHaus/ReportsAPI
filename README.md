@@ -32,7 +32,7 @@
 
         flask run
 
-        *note: f this fails to run because it cannot find openai, it is likely you just need to restart the shell. Close and reopen your command prompt, navigate to the ReportsAPI directory  and re-complete steps 4 and 6 (NOT 5). 
+*note: if this fails to run because it cannot find openai, it is likely you just need to restart the shell. Close and reopen your command prompt, navigate to the ReportsAPI directory  and re-complete steps 4 and 6 (NOT 5). 
 
 7. Open a browser and navigate to http://127.0.0.1:5000 or http://localhost:5000/
 
