@@ -4,7 +4,7 @@
 
 0. If you are reading this file, it is likely you have already git cloned the required files for the API. If not, git clone the forum repository. You will need to have python installed (https://www.python.org/downloads/). Python 3.10.9 recommended. 
 
-1. To use this API, you will need an API key from OpenAI. https://platform.openai.com/account/api-keys Set your API key as openai.api_key on line 7 of app.py as a str (using quotation marks)
+1. To use this API, you will need an API key from OpenAI. Set your API key as openai.api_key on line 7 of app.py as a str (using quotation marks)
 
 2. In your console, terminal, or command prompt, navigate to ReportsAPI directory
 
@@ -32,7 +32,7 @@
 
         flask run
 
-*note: if this fails to run because it cannot find openai, it is likely you just need to restart the shell. Close and reopen your command prompt, navigate to the ReportsAPI directory  and re-complete steps 4 and 6 (NOT 5). 
+        *note: f this fails to run because it cannot find openai, it is likely you just need to restart the shell. Close and reopen your command prompt, navigate to the ReportsAPI directory  and re-complete steps 4 and 6 (NOT 5). 
 
 7. Open a browser and navigate to http://127.0.0.1:5000 or http://localhost:5000/
 
