@@ -1,66 +1,113 @@
 import os
-
 import openai
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, url_for, flash
+from app import app, db
+from app.forms import LoginForm, RegistrationForm, DescForm, CommentForm
+from flask_login import current_user, login_user, logout_user
+from app.models import User, CourseDesc
 
-app = Flask(__name__)
-openai.api_key = 
 
+openai.api_key = os.getenv("OPENAI_API_KEY")
+conversation = [{"role": "system", "content": "You are a helpful teacher's assistant. "}]
 
-@app.route("/", methods=("GET", "POST"))
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 def index():
-    if request.method == "POST":
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+    form = CommentForm()
+    if request.method == "POST" and form.validate_on_submit():
         
-        studentName = request.form["studentName"]
-        studentGrade = request.form["studentMark"]
-        courseDesc = request.form["courseDesc"]
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=generate_prompt(studentName, studentGrade, courseDesc),
+        studentName = form.studentname.data
+        studentGrade = form.studentgrade.data
+        courseDesc = form.body.data
+        conversation.append(generate_convo(studentName, studentGrade, courseDesc.body))
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages = conversation[-1:],
             temperature=0.8,
-            max_tokens=3000,
+            max_tokens=2500,
         )
-        return redirect(url_for("index", result=response.choices[0].text))
+        return redirect(url_for("index", result=completion['choices'][0]['message']['content']))
 
     result = request.args.get("result")
-    return render_template("index.html", result=result)
+    return render_template("index.html", result=result, form=form)
 
 
-def generate_prompt(studentName, studentGrade, courseDesc):
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is None:
+            flash('Invalid username')
+            return redirect(url_for('login'))
+        login_user(user, remember=form.remember_me.data)
+        return redirect('/index')
+    return render_template('login.html', title='Sign In', form=form)
+
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Congratulations, you are now a registered user!')
+        return redirect(url_for('login'))
+    return render_template('register.html', title='Register', form=form)
+
+
+@app.route('/addClassDesc/', methods=['GET', 'POST'])
+def addClassDesc():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+    form = DescForm()
+    if form.validate_on_submit():
+        desc = CourseDesc(coursename = form.coursename.data, body=form.body.data, author=current_user)
+        db.session.add(desc)
+        db.session.commit()
+        flash('You have added a course description')
+        return redirect(url_for('index'))
+    return render_template('addClassDesc.html', title='Add Course Description', form=form)
+
+
+def generate_convo(studentName, studentGrade, courseDesc):
     if int(studentGrade) >79:
 
-        return ("""Write a three sentance report card comment for the studentName. 
+        return {"role": "user", "content": ("""Write a three sentance report card comment for the studentName. 
         The first two sentances must each include at least one entry from the list: 
-        thorough, high degree, extensive, comprehensive, in-depth, admirable, outstanding, tremendous. 
+        thorough, high degree, extensive, comprehensive, admirable, outstanding, tremendous. 
         The third sentance must be a suggestion for how to improve. Keep it positive. 
         All three sentances should be reasonably related to the courseDesc. 
 
                 studentName: Hayyan
                 courseDesc: The Grade 12 Computer Science program challenged students to further develop 
-                their knowledge and skills in computer science, focusing largely on the topic of 
+                their knowledge and skills in computer science, focusing on the topic of 
                 object-oriented design. The class analysed algorithms for runtime efficiency, 
-                extended their understanding of arrays to a second dimension, and began to use 
-                recursive definitions to break tasks into solvable self-similar base cases, 
-                and learned to include abstraction in their class hierarchy definitions. 
-                At the end of the year, each member of the class 
-                used modular design principles and two-dimensional arrays to create playable games 
-                making use of predefined custom classes according to the software development life cycle. 
+                extended their understanding two dimensional arrays, and began to use 
+                recursive definitions, and learned to include abstraction in their class hierarchy definitions. 
                 Report Card Comment: Hayyan has had an outstanding year in his AP Computer Science class, 
                 showing a thorough understanding of the benefits of class hierarchy. 
                 His final project where he built a tabletop card game demonstrated extensive ability 
-                to iteratively apply the software design lifecycle. 
-                Hayyan is encouraged to investigate new programming concepts and languages as he moves 
-                into his post-secondary studies. 
+                to iteratively apply the software design lifecycle. Hayyan is encouraged to investigate
+                new programming concepts and languages as he moves into his post-secondary studies. 
 
                 studentName: Siyang
                 courseDesc: The Grade 11 Functions program covered concepts that included exponential 
                 functions, trigonometry, periodic functions, sequences, series, and financial mathematics. 
-                Students explored the characteristics of relationships of exponential growth and geometric series. 
-                The class revisited the trigonometric laws and identities and extended their 
-                understanding by applying transformations to sinusoidal wave functions. 
-                In the Financial Applications unit, 
-                students were required to compare results of various investment or debt scenarios using time value 
-                of money calculations and communicate their analysis of the results. 
+                They explored the characteristics of exponential growth and geometric series. 
                 Report Card Comment: 
                 Siyang had a tremendous semester in the grade eleven Functions program, 
                 demonstrating admirable ability to manipulate and transform the function families explored throughout. 
@@ -74,26 +121,22 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 Report Card Comment:""").format(
                         studentName.capitalize(),
                         courseDesc.capitalize(),
-                    )
+                    )}
 
     elif int(studentGrade) >69:
 
-        return ("""Write a three sentance report card comment for the studentName. 
+        return {"role": "user", "content": ("""Write a three sentance report card comment for the studentName. 
         The first two sentances must each include at least one entry from the list: 
         considerable, significant, substantial, noteworthy, strong, ample. 
         The third sentance must be a suggestion for how to improve. Keep it positive. 
         All three sentances should be reasonably related to the courseDesc. 
 
                 studentName: Tom
-                courseDesc: The Grade 12 Computer Science program challenged students to further develop 
-                their knowledge and skills in computer science, focusing largely on the topic of 
+                courseDesc: courseDesc: The Grade 12 Computer Science program challenged students to further develop 
+                their knowledge and skills in computer science, focusing on the topic of 
                 object-oriented design. The class analysed algorithms for runtime efficiency, 
-                extended their understanding of arrays to a second dimension, and began to use 
-                recursive definitions to break tasks into solvable self-similar base cases, 
-                and learned to include abstraction in their class hierarchy definitions. 
-                At the end of the year, each member of the class 
-                used modular design principles and two-dimensional arrays to create playable games 
-                making use of predefined custom classes according to the software development life cycle. 
+                extended their understanding two dimensional arrays, and began to use 
+                recursive definitions, and learned to include abstraction in their class hierarchy definitions.
                 Report Card Comment: Tom had a noteworthy year in his AP Computer Science class, 
                 showing a considerable understanding of the benefits of class hierarchy. 
                 His final project demonstrated significant ability to iteratively apply the software design lifecycle. 
@@ -103,12 +146,7 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 studentName: Ethan
                 courseDesc: The Grade 11 Functions program covered concepts that included exponential 
                 functions, trigonometry, periodic functions, sequences, series, and financial mathematics. 
-                Students explored the characteristics of relationships of exponential growth and geometric series. 
-                The class revisited the trigonometric laws and identities and extended their 
-                understanding by applying transformations to sinusoidal wave functions. 
-                In the Financial Applications unit, 
-                students were required to compare results of various investment or debt scenarios using time value 
-                of money calculations and communicate their analysis of the results. 
+                They explored the characteristics of exponential growth and geometric series. 
                 Report Card Comment: 
                 Ethan had a strong semester in the grade eleven Functions program, demonstrating substantial 
                 ability to manipulate and transform the function families explored throughout. 
@@ -121,11 +159,11 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 Report Card Comment:""").format(
                         studentName.capitalize(),
                         courseDesc.capitalize(),
-                    )
+                    )}
     
     elif int(studentGrade) >59:
 
-        return ("""Write a three sentance report card comment for the studentName. 
+        return {"role": "user", "content": ("""Write a three sentance report card comment for the studentName. 
         The first two sentances must each include at least one entry from the list: 
         some, moderate, modest, adequate, satisfactory. 
         The third sentance must be a suggestion for how to improve. 
@@ -134,12 +172,7 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 studentName: Jake
                 courseDesc: The Grade 11 Functions program covered concepts that included exponential 
                 functions, trigonometry, periodic functions, sequences, series, and financial mathematics. 
-                Students explored the characteristics of relationships of exponential growth and geometric series. 
-                The class revisited the trigonometric laws and identities and extended their 
-                understanding by applying transformations to sinusoidal wave functions. 
-                In the Financial Applications unit, 
-                students were required to compare results of various investment or debt scenarios using time value 
-                of money calculations and communicate their analysis of the results. 
+                They explored the characteristics of exponential growth and geometric series. 
                 Report Card Comment: Jake had some success this semester in the grade eleven Functions program, 
                 demonstrating moderate ability to improve his understanding throughout. His final assessment 
                 demonstrated a more modest ability to recall and revise the content explored throughout the semester. 
@@ -147,12 +180,10 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 calculate the exact values of trigonometric ratios, rather than relying on his calculator.  
 
                 studentName: Luna
-                courseDesc: In the Grade 12 Calculus and Vectors program students developed their understanding 
+                courseDesc: The Grade 12 Calculus and Vectors program students developed their understanding 
                 of calculus concepts including tangents, limits, and derivatives both from first principles 
-                and using the various algebraic rules, such as the chain rule. The class then looked at 
-                multiple strategies for solving limits and derivatives and utilized them to develop accurate 
-                representations of the graphs of expressions to locate optimal values, asymptotes, ranges 
-                of increase and decrease, as well as ranges of concavity. 
+                and chain rule. The class then looked at strategies for solving limits and derivatives 
+                and utilized them to locate optimal values, and intervals of increase, decrease, and concavity. 
                 Report Card Comment: Luna had a satifactory end to her semester in the Calculus and Vectors program, 
                 demonstrating some ability to make vector calculations. Her final assessment further illustrated a 
                 modest recall and development of optimization and problem-solving strategies allowing her to 
@@ -164,11 +195,11 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 Report Card Comment:""").format(
                         studentName.capitalize(),
                         courseDesc.capitalize(),
-                    )
+                    )}
     
     elif int(studentGrade) >49:
 
-        return ("""Write a three sentance report card comment for the studentName. 
+        return {"role": "user", "content": ("""Write a three sentance report card comment for the studentName. 
         The first two sentances must each include at least one entry from the list: 
         limited, minimal, little, slight, insufficient, inadequate. 
         The third sentance must be a suggestion for how to improve. Be positive, but modest.  
@@ -177,24 +208,17 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 studentName: Jack
                 courseDesc: The Grade 11 Functions program covered concepts that included exponential 
                 functions, trigonometry, periodic functions, sequences, series, and financial mathematics. 
-                Students explored the characteristics of relationships of exponential growth and geometric series. 
-                The class revisited the trigonometric laws and identities and extended their 
-                understanding by applying transformations to sinusoidal wave functions. 
-                In the Financial Applications unit, 
-                students were required to compare results of various investment or debt scenarios using time value 
-                of money calculations and communicate their analysis of the results. 
+                They explored the characteristics of exponential growth and geometric series. 
                 Report Card Comment: Jack had limited success this semester in the grade eleven Functions program, 
                 demonstrating minimal ability to improve his understanding throughout. His final assessment 
                 demonstrated an inadequate ability to recall and revise the content explored throughout the semester. 
                 I encourage Jack to regularly complete his assigned homework.   
 
-                studentName: Liana
-                courseDesc: In the Grade 12 Calculus and Vectors program students developed their understanding 
+                studentName: Lina
+                courseDesc: The Grade 12 Calculus and Vectors program students developed their understanding 
                 of calculus concepts including tangents, limits, and derivatives both from first principles 
-                and using the various algebraic rules, such as the chain rule. The class then looked at 
-                multiple strategies for solving limits and derivatives and utilized them to develop accurate 
-                representations of the graphs of expressions to locate optimal values, asymptotes, ranges 
-                of increase and decrease, as well as ranges of concavity. 
+                and chain rule. The class then looked at strategies for solving limits and derivatives 
+                and utilized them to locate optimal values, and intervals of increase, decrease, and concavity. 
                 Report Card Comment: Liana had a tough end to her semester in the Calculus and Vectors program, 
                 demonstrating little ability to make vector calculations. Her final assessment further illustrated a 
                 limited recall of optimization and problem-solving strategies further dropping her mark. 
@@ -205,11 +229,11 @@ def generate_prompt(studentName, studentGrade, courseDesc):
                 Report Card Comment:""").format(
                         studentName.capitalize(),
                         courseDesc.capitalize(),
-                    )
+                    )}
     
     else :
 
-        return ("""Write a three sentance report card comment for the studentName.
+        return {"role": "user", "content": ("""Write a three sentance report card comment for the studentName.
             Indicate that they did not pass the course. 
             Suggest that they consider retaking the course. 
 
@@ -222,4 +246,4 @@ def generate_prompt(studentName, studentGrade, courseDesc):
             studentName: {}
             Report Card Comment:""").format(
                         studentName.capitalize()
-                    )
+                    )}
