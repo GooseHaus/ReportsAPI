@@ -38,13 +38,20 @@
 
 
 ## Usage
-This API provides a way to generate report card comments based on student name, student grade, and course description. It uses OpenAI's Completion API to complete a text prompt based on the input data. The API is built with Flask, a lightweight web framework.
+This API provides a way to generate report card comments based on student name, student grade, and course description. It uses OpenAI's Completion API to complete a text prompt based on the input data. The API is built with Flask, a lightweight web framework. In addition, users can also add course descriptions for their personal use.
 
-Input
+### Input
+
 The API takes in 3 inputs:
 
-studentName: The name of the student being reported on.
-studentGrade: The grade of the student, as an integer.
-courseDesc: A description of the course being reported on.
-Output
-The API generates a report card comment, consisting of three sentences. The first two sentences must each include at least one entry from the list of words: thorough, high degree, extensive, comprehensive, in-depth, admirable, outstanding, tremendous (if the student grade is greater than or equal to 70) or considerable, significant, substantial, noteworthy, strong, ample (if the student grade is between 70 and 79). The third sentence must be a suggestion for how to improve. Most must be kept positive. All three sentences should be reasonably related to the course description. 
+1. studentName: The name of the student being reported on.
+2. studentGrade: The grade of the student, as an integer.
+3. courseDesc: A description of the course being reported on. This is selected from a dropdown list of course descriptions that the user has added.
+
+### Output
+
+The API generates a report card comment, consisting of three sentences. The first two sentences must each include at least one entry from the list of words: thorough, high degree, extensive, comprehensive, in-depth, admirable, outstanding, tremendous (if the student grade is greater than or equal to 70) or considerable, significant, substantial, noteworthy, strong, ample (if the student grade is between 70 and 79). The third sentence must be a suggestion for how to improve. Most must be kept positive. All three sentences should be reasonably related to the course description.
+
+### Additional Features
+
+Users can register and login to the application. Authenticated users can add course descriptions which can be used when generating report card comments.
