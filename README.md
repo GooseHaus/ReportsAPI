@@ -4,7 +4,7 @@
 
 0. If you are reading this file, it is likely you have already git cloned the required files for the API. If not, git clone the forum repository. You will need to have python installed (https://www.python.org/downloads/). Python 3.10.9 recommended. 
 
-1. To use this API, you will need an API key from OpenAI. Set your API key as openai.api_key on line 7 of app.py as a str (using quotation marks)
+1. To use this API, you will need an API key from OpenAI. Set your API key as openai.api_key on line 10 of routes.py as a str (using quotation marks)
 
 2. In your console, terminal, or command prompt, navigate to ReportsAPI directory
 
