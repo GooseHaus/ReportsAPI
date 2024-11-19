@@ -23,7 +23,7 @@ def index():
         courseDesc = form.body.data
         conversation.append(generate_convo(studentName, studentGrade, courseDesc.body))
         completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages = conversation[-1:],
             temperature=0.8,
             max_tokens=2500,
